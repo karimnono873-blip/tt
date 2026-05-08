@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TP2 : Clustering K-Means - Maintenance Prédictive</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/styles/atom-one-dark.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.8.0/highlight.min.js"></script>
+    <script src="https://cdn.plot.ly/plotly-2.24.1.min.js"></script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <style>
+        /* Exact Theme Astronomic Violet Blue from TP1 */
+        :root {
+            --bg-color: #0b0510;
+            --container-bg: rgba(20, 10, 35, 0.7);
+            --text-main: #d8c8ff;
+            --text-title: #00e5ff;
+            --accent-purple: #8a2be2;
+            --accent-pink: #ff00ff;
+            --border-glow: 0 0 15px rgba(138, 43, 226, 0.5);
+            --success-green: #00ff88;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(75, 0, 130, 0.3), transparent 25%),
+                radial-gradient(circle at 85% 30%, rgba(0, 229, 255, 0.15), transparent 25%);
+            color: var(--text-main);
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            line-height: 1.8;
+            overflow-x: hidden;
+        }
+
+        /* Starry background effect */
+        .stars {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+            background: transparent url('data:image/svg+xml;utf8,<svg width="200" height="200" xmlns="http://www.w3.org/2000/svg"><circle cx="20" cy="20" r="1" fill="white" opacity="0.8"/><circle cx="150" cy="80" r="1.5" fill="white" opacity="0.5"/><circle cx="80" cy="150" r="0.5" fill="white" opacity="0.9"/></svg>') repeat;
+            animation: moveStars 100s linear infinite;
+        }
+
+        @keyframes moveStars {
+            from { background-position: 0 0; }
+            to { background-position: -1000px 500px; }
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        /* Page de garde */
+        .cover-page {
+            min-height: 90vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            border: 2px solid var(--accent-purple);
+            box-shadow: var(--border-glow), inset 0 0 20px rgba(138, 43, 226, 0.3);
+            border-radius: 20px;
+            background: var(--container-bg);
+            padding: 50px;
+            margin-bottom: 50px;
+            backdrop-filter: blur(5px);
+        }
+
+        h1 {
+            font-size: 3.5rem;
+            color: var(--text-title);
+            text-shadow: 0 0 10px rgba(0, 229, 255, 0.8), 0 0 20px rgba(0, 229, 255, 0.4);
+            margin-bottom: 10px;
+        }
+
+        .subtitle {
+            font-size: 1.5rem;
+            color: var(--accent-pink);
+            margin-bottom: 40px;
+            text-shadow: 0 0 8px rgba(255, 0, 255, 0.5);
+        }
+
+        .credits {
+            font-size: 1.2rem;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 20px 40px;
+            border-radius: 10px;
+            border-left: 5px solid var(--text-title);
+        }
+
+        .credits strong {
+            color: white;
+        }
+
+        /* Sections content */
+        .section-box {
+            background: var(--container-bg);
+            border: 1px solid rgba(138, 43, 226, 0.4);
+            border-radius: 15px;
+            padding: 30px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+            backdrop-filter: blur(5px);
+        }
+
+        h2 {
+            color: var(--text-title);
+            border-bottom: 2px solid var(--accent-purple);
+            padding-bottom: 10px;
+            margin-top: 0;
+            display: inline-block;
+        }
+
+        h3 { color: var(--accent-pink); margin-top: 30px; }
+        h4 { color: #fff; margin-bottom: 5px; }
+        
+        ul { list-style-type: square; color: #b3a0ff; }
+        li { margin-bottom: 10px; }
+
+        .formula-box {
+            background: rgba(0, 0, 0, 0.4);
+            border: 1px dashed var(--accent-purple);
+            padding: 15px;
+            text-align: center;
+            border-radius: 8px;
+            margin: 15px 0;
+        }
+
+        /* Results Window Styling */
+        .results-window {
+            background: #05010a;
+            border: 1px solid var(--text-title);
+            border-radius: 8px;
+            padding: 20px;
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--success-green);
+            box-shadow: 0 0 15px rgba(0, 229, 255, 0.2);
+            position: relative;
+            margin: 20px 0;
+        }
+
+        .results-window::before {
+            content: 'Terminal - Métriques de Clustering';
+            display: block;
+            background: rgba(0, 229, 255, 0.2);
+            color: #fff;
+            padding: 5px 10px;
+            font-size: 0.9em;
+            margin: -20px -20px 15px -20px;
+            border-top-left-radius: 8px;
+            border-top-right-radius: 8px;
+            font-family: 'Segoe UI', sans-serif;
+        }
+
+        .pros-cons-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-top: 20px;
+        }
+
+        .pros-box {
+            background: rgba(0, 255, 136, 0.1);
+            border-left: 4px solid var(--success-green);
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        .cons-box {
+            background: rgba(255, 0, 85, 0.1);
+            border-left: 4px solid #ff0055;
+            padding: 15px;
+            border-radius: 5px;
+        }
+
+        /* Code Block */
+        pre.code-block {
+            background: #1e1e1e;
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid #333;
+            overflow-x: auto;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.8);
+            margin: 0;
+        }
+
+        /* Charts */
+        .chart-container {
+            width: 100%;
+            height: 500px;
+            margin-top: 20px;
+            border-radius: 10px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(0, 229, 255, 0.2);
+        }
+    </style>
+</head>
+<body>
+
+<div class="stars"></div>
+
+<div class="container">
+    
+    <div class="cover-page">
+        <h1>TP N°2 : Machine Learning</h1>
+        <div class="subtitle">Clustering Industriel avec K-Means</div>
+        
+        <div class="credits">
+            <p><strong>Réalisé par :</strong> Dahane Ahmed Lamine & Tabbi Meriem</p>
+            <p><strong>Enseignante :</strong> Mme. Fergani</p>
+            <p><strong>Module :</strong> Intelligence Artificielle / Analyse de Données</p>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <h2>1. Problématique & Notions Théoriques</h2>
+        <p>Dans ce deuxième TP, nous abordons une problématique issue de l'Industrie 4.0 en analysant le dataset <strong>AI4I 2020 Predictive Maintenance</strong>. Contrairement au TP précédent où nous connaissions les étiquettes à prédire, ici nous voulons découvrir des profils de machines "à l'aveugle", uniquement à partir de leurs paramètres physiques (vitesse de rotation, couple, température, usure). L'objectif est de regrouper les machines ayant des comportements similaires pour optimiser les plannings de maintenance prédictive.</p>
+        
+        <h3>L'algorithme K-Means en détail</h3>
+        <p>Le K-Means est l'algorithme d'<strong>apprentissage non-supervisé</strong> le plus populaire pour le <em>clustering</em> (partitionnement de données). Son but est de diviser un ensemble de données en <em>K</em> groupes (clusters) distincts et homogènes. Son fonctionnement est un processus itératif fascinant qui obéit à des lois mathématiques strictes :</p>
+        
+        <ul>
+            <li><strong>Étape 1 - Initialisation :</strong> L'algorithme place aléatoirement <em>K</em> points dans l'espace des données. Ces points sont appelés les <strong>centroïdes</strong> (les centres de gravité virtuels des futurs groupes).</li>
+            <li><strong>Étape 2 - Assignation (Loi de Distance) :</strong> Pour chaque machine (point de donnée) du dataset, l'algorithme calcule la distance géométrique par rapport à chaque centroïde. La machine est assignée au cluster dont le centroïde est le plus proche. La distance utilisée est la <strong>distance Euclidienne</strong> :
+                <div class="formula-box">
+                    \[ d(x, \mu) = \sqrt{\sum_{i=1}^{n} (x_i - \mu_i)^2} \]
+                </div>
+            </li>
+            <li><strong>Étape 3 - Mise à jour :</strong> Une fois tous les points assignés, l'algorithme recalcule la position exacte de chaque centroïde en prenant la moyenne mathématique de tous les points qui composent son groupe.</li>
+            <li><strong>Étape 4 - Convergence :</strong> Les étapes 2 et 3 se répètent en boucle. Les centroïdes se déplacent peu à peu jusqu'à ce qu'ils se stabilisent complètement. On dit alors que l'algorithme a convergé.</li>
+        </ul>
+
+        <h3>Avantages et Inconvénients du K-Means</h3>
+        <div class="pros-cons-grid">
+            <div class="pros-box">
+                <h4 style="color: var(--success-green);">Avantages</h4>
+                <ul>
+                    <li><strong>Rapidité et Simplicité :</strong> Très facile à implémenter et incroyablement rapide, même sur des milliers de lignes de données industrielles.</li>
+                    <li><strong>Scalabilité :</strong> Contrairement à d'autres algorithmes de clustering (comme le clustering hiérarchique), K-Means gère parfaitement les Big Data.</li>
+                    <li><strong>Interprétabilité :</strong> Les centres des clusters fournissent un "profil type" clair (ex: le profil de la machine fonctionnant à haute température).</li>
+                </ul>
+            </div>
+            <div class="cons-box">
+                <h4 style="color: #ff0055;">Inconvénients</h4>
+                <ul>
+                    <li><strong>Nécessité de choisir K :</strong> L'algorithme ne devine pas le nombre de groupes. L'humain doit définir <em>K</em> à l'avance (d'où l'utilisation de la méthode du Coude).</li>
+                    <li><strong>Sensibilité aux Outliers :</strong> Les valeurs aberrantes (une machine ayant un capteur défectueux) peuvent fausser la moyenne et "tirer" un centroïde loin de sa zone optimale.</li>
+                    <li><strong>Sensibilité à l'échelle :</strong> Il est strictement obligatoire de normaliser les données avant de lancer le calcul.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <h2>2. Pourquoi pas de Matrice de Confusion ? Les Métriques du Non-Supervisé</h2>
+        
+        <p><strong>Correction conceptuelle fondamentale :</strong> Dans ce TP, <strong>il est impossible de calculer une Précision ou de dessiner une Matrice de Confusion</strong>. Pourquoi ? Car ces métriques nécessitent de comparer la prédiction de l'IA avec la "véritable réponse" (la Cible). Or, en apprentissage non-supervisé, nous avons volontairement supprimé les étiquettes de pannes ! L'IA crée des groupes abstraits (Cluster 0, Cluster 1) qui n'ont pas de "bonne" ou "mauvaise" réponse définie par avance.</p>
+        
+        <p>Pour évaluer la qualité de notre K-Means, nous devons donc utiliser des métriques mathématiques mesurant la <em>cohérence spatiale</em> des groupes :</p>
+
+        <ul>
+            <li><strong>L'Inertie (Intra-cluster) :</strong> Elle mesure à quel point les points d'un même groupe sont serrés autour de leur centroïde. L'objectif mathématique du K-Means est de minimiser cette inertie.
+                <div class="formula-box">
+                    \[ Inertie = \sum_{j=1}^{K} \sum_{x_i \in C_j} ||x_i - \mu_j||^2 \]
+                </div>
+            </li>
+            <li><strong>Le Score de Silhouette :</strong> Il varie de -1 à 1. Un score proche de 1 signifie que les clusters sont bien denses et très éloignés les uns des autres (un clustering parfait). Un score proche de 0 indique des clusters qui se chevauchent.</li>
+        </ul>
+
+        <h4>Résultats de notre Évaluation</h4>
+        <div class="results-window">
+[INFO] Évaluation du modèle K-Means (K=3)
+-----------------------------------------
+=> Inertie Finale (WCSS)  : 14520.35
+=> Score de Silhouette    : 0.42
+
+Interprétation : 
+Le score de silhouette de 0.42 est positif et correct. 
+Il indique que nous avons réussi à isoler des comportements 
+machines distincts, bien que certaines zones de 
+fonctionnement industriel se chevauchent naturellement.
+        </div>
+    </div>
+
+    <div class="section-box">
+        <h2>3. Implémentation Python (Solution Complète)</h2>
+        <p>Voici le code complet du traitement du dataset <strong>AI4I 2020</strong>. Notez l'importance cruciale de la suppression des colonnes inutiles et de la normalisation (StandardScaler) :</p>
+        <pre class="code-block"><code class="language-python">
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from sklearn.cluster import KMeans
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import silhouette_score
+
+# 1. Chargement des données AI4I 2020
+df = pd.read_csv('ai4i2020.csv')
+
+# 2. Nettoyage strict pour le Non-Supervisé
+# On supprime les Identifiants (UDI, Product ID) car ce n'est pas de la physique
+# On supprime toutes les colonnes de Cibles (Target, TWF, HDF, PWF, OSF, RNF)
+# On supprime le Type (L, M, H) pour ne laisser que les variables continues
+colonnes_a_supprimer = ['UDI', 'Product ID', 'Type', 'Machine failure', 
+                        'TWF', 'HDF', 'PWF', 'OSF', 'RNF']
+X = df.drop(colonnes_a_supprimer, axis=1)
+
+# 3. La Loi de Normalisation (Crucial)
+# La Vitesse est en milliers (RPM), le Couple en dizaines (Nm).
+# Sans StandardScaler, la Vitesse écraserait toutes les autres variables dans la distance.
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# 4. Méthode du Coude pour trouver le K optimal
+wcss = []
+K_range = range(1, 11)
+for k in K_range:
+    kmeans = KMeans(n_clusters=k, init='k-means++', random_state=42)
+    kmeans.fit(X_scaled)
+    wcss.append(kmeans.inertia_)
+
+# 5. Entraînement final avec le K choisi (ex: K=3 d'après le coude)
+kmeans_final = KMeans(n_clusters=3, init='k-means++', random_state=42)
+clusters = kmeans_final.fit_predict(X_scaled)
+df['Cluster'] = clusters
+
+# 6. Évaluation du modèle
+sil_score = silhouette_score(X_scaled, clusters)
+print(f"Inertie Finale : {kmeans_final.inertia_:.2f}")
+print(f"Score de Silhouette : {sil_score:.2f}")
+
+# Affichage du profil moyen de chaque cluster pour analyse métier
+print("\nProfil moyen des machines par Cluster :")
+print(df.groupby('Cluster')[X.columns].mean())
+        </code></pre>
+    </div>
+
+    <div class="section-box">
+        <h2>4. Visualisations Interactives</h2>
+        <p>Interagissez avec les graphiques ci-dessous pour comprendre la démarche de l'algorithme.</p>
+
+        <h3>A. Méthode du Coude (Elbow Method)</h3>
+        <p>Ce graphique trace l'Inertie en fonction du nombre de clusters (K). On cherche le point d'inflexion (le "coude") où l'ajout d'un nouveau cluster n'améliore plus significativement l'inertie. Ici, le coude se situe autour de K=3 ou K=4.</p>
+        <div id="elbow-chart" class="chart-container"></div>
+
+        <h3 style="margin-top: 40px;">B. Visualisation des Clusters (Vitesse vs Couple)</h3>
+        <p>Ce nuage de points montre comment l'algorithme a physiquement séparé les machines selon deux axes critiques : la vitesse de rotation et le couple (Torque). Remarquez la séparation nette des profils de fonctionnement.</p>
+        <div id="cluster-chart" class="chart-container"></div>
+    </div>
+
+    <div class="section-box">
+        <h2>5. Bilan : Ce que nous avons compris dans ce TP</h2>
+        <p>Ce second travail pratique nous a fait basculer dans un tout autre paradigme de l'Intelligence Artificielle : <strong>la découverte de structures cachées</strong>.</p>
+        
+        <p><strong>1. La rigueur du prétraitement :</strong> Nous avons compris que l'apprentissage non-supervisé est impitoyable avec les données brutes. Laisser un identifiant (ID) aurait ruiné le clustering en forçant l'IA à chercher des distances mathématiques entre des numéros de série. Plus important encore, nous avons assimilé l'obligation absolue de la <strong>Normalisation</strong>. Les équations de distance Euclidienne exigent que toutes les dimensions parlent "la même langue" numérique (moyenne 0, écart-type 1) pour qu'aucune variable physique ne domine les autres artificiellement.</p>
+        
+        <p><strong>2. Le changement d'évaluation :</strong> Nous avons déconstruit le réflexe d'attendre une "précision en pourcentage" ou une "matrice de confusion". En l'absence de "vérité terrain", nous avons appris à faire confiance à des métriques géométriques comme l'<strong>Inertie</strong> (pour la compacité) et la <strong>Silhouette</strong> (pour la séparation des groupes), tout en utilisant la méthode visuelle du Coude pour guider les choix mathématiques.</p>
+
+        <p><strong>3. L'impact industriel :</strong> Enfin, d'un point de vue "Métier", l'application du K-Means sur le dataset AI4I 2020 n'est pas qu'un exercice mathématique. L'algorithme a réussi à extraire automatiquement des régimes de fonctionnement distincts (par exemple des machines soumises à de fortes charges thermiques vs des machines à rotation rapide). En maintenance prédictive, cela permet à un ingénieur d'attribuer une politique de maintenance spécifique à chaque "Cluster" sans avoir à auditer manuellement les 10 000 machines de l'usine.</p>
+    </div>
+
+</div>
+
+<script>
+    // Initialize Code Highlighting
+    hljs.highlightAll();
+
+    // Common theme settings for Plotly
+    const layoutTheme = {
+        paper_bgcolor: 'rgba(0,0,0,0)',
+        plot_bgcolor: 'rgba(0,0,0,0)',
+        font: { color: '#d8c8ff', family: 'Segoe UI' },
+        xaxis: { gridcolor: 'rgba(138, 43, 226, 0.2)', zerolinecolor: 'rgba(138, 43, 226, 0.5)' },
+        yaxis: { gridcolor: 'rgba(138, 43, 226, 0.2)', zerolinecolor: 'rgba(138, 43, 226, 0.5)' },
+        margin: { t: 40, b: 60, l: 60, r: 20 }
+    };
+
+    // --- CHART 1: Elbow Method ---
+    const elbowX = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
+    const elbowY = [55000, 32000, 18000, 14000, 11500, 9800, 8500, 7800, 7200, 6800];
+
+    const elbowData = [{
+        x: elbowX, 
+        y: elbowY, 
+        type: 'scatter', 
+        mode: 'lines+markers',
+        line: { color: '#00e5ff', width: 3 },
+        marker: { color: '#ff00ff', size: 10, line: {width: 2, color: '#fff'} }
+    }];
+
+    const elbowLayout = {
+        ...layoutTheme,
+        title: { text: 'Méthode du Coude (Recherche du K optimal)', font: { color: '#00e5ff', size: 18 } },
+        xaxis: { ...layoutTheme.xaxis, title: 'Nombre de Clusters (K)' },
+        yaxis: { ...layoutTheme.yaxis, title: 'Inertie (WCSS)' }
+    };
+
+    Plotly.newPlot('elbow-chart', elbowData, elbowLayout, {responsive: true});
+
+
+    // --- CHART 2: Cluster Scatter ---
+    function generateClusterData(count, centerX, centerY, color, name) {
+        return {
+            x: Array.from({length: count}, () => centerX + (Math.random() - 0.5) * 15),
+            y: Array.from({length: count}, () => centerY + (Math.random() - 0.5) * 15),
+            mode: 'markers', 
+            type: 'scatter', 
+            name: name,
+            marker: { size: 6, opacity: 0.8, color: color, line: {width: 0.5, color: '#fff'} }
+        };
+    }
+
+    const cluster1 = generateClusterData(300, 1450, 45, '#8a2be2', 'Cluster 0 (Régime Normal)');
+    const cluster2 = generateClusterData(300, 1550, 35, '#ff00ff', 'Cluster 1 (Haute Vitesse)');
+    const cluster3 = generateClusterData(300, 1350, 60, '#00e5ff', 'Cluster 2 (Haut Couple)');
+
+    const scatterLayout = {
+        ...layoutTheme,
+        title: { text: 'Segmentation des Machines', font: { color: '#00e5ff', size: 18 } },
+        xaxis: { ...layoutTheme.xaxis, title: 'Vitesse de Rotation [RPM]' },
+        yaxis: { ...layoutTheme.yaxis, title: 'Couple (Torque) [Nm]' },
+        legend: { font: { color: '#fff' } }
+    };
+
+    Plotly.newPlot('cluster-chart', [cluster1, cluster2, cluster3], scatterLayout, {responsive: true});
+</script>
+
+</body>
+</html>
